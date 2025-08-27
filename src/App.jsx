@@ -13,7 +13,7 @@ import ResearcherSignup from "./ResearcherSignup"; // 🔹 NEW signup component
 
 import { auth, db } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 function App() {
   const [themeReady, setThemeReady] = useState(false);
@@ -25,6 +25,10 @@ function App() {
   // 🔐 Researcher state
   const [researcher, setResearcher] = useState(null);
   const [approved, setApproved] = useState(null); // null = loading, true/false = checked
+
+  // 👑 Owner email (bypass approval)
+  const OWNER_EMAIL = "grohaj03rk@gmail.com";
+  const normalize = (s) => (s || "").trim().toLowerCase();
 
   // Persist dark mode choice in localStorage
   useEffect(() => {
@@ -44,22 +48,45 @@ function App() {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       setResearcher(user);
-      if (user) {
-        try {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          if (userDoc.exists()) {
-            setApproved(userDoc.data().approved === true);
-          } else {
-            setApproved(false);
-          }
-        } catch (err) {
-          console.error("Error fetching approval:", err);
+
+      if (!user) {
+        setApproved(null);
+        return;
+      }
+
+      try {
+        const emailNorm = normalize(user.email);
+
+        // ✅ Safety net: ensure owner is always approved admin
+        if (emailNorm === normalize(OWNER_EMAIL)) {
+          await setDoc(
+            doc(db, "users", user.uid),
+            {
+              email: emailNorm,
+              role: "admin",
+              approved: true,
+              createdAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+          setApproved(true);
+          return;
+        }
+
+        // Everyone else: read approval flag from Firestore
+        const snap = await getDoc(doc(db, "users", user.uid));
+        if (snap.exists()) {
+          setApproved(snap.data().approved === true);
+        } else {
+          // No doc yet => treat as not approved (owner/admin will handle)
           setApproved(false);
         }
-      } else {
-        setApproved(null);
+      } catch (err) {
+        console.error("Error fetching approval:", err);
+        setApproved(false);
       }
     });
+
     return () => unsub();
   }, []);
 

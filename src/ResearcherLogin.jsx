@@ -12,6 +12,7 @@ import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 function ResearcherLogin({ onBack }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false); // 🔹 Show password toggle
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -42,7 +43,9 @@ function ResearcherLogin({ onBack }) {
     setError(null);
     setLoading(true);
     try {
-      const cred = await signInWithEmailAndPassword(auth, email, password);
+      // keep logic same; lightly normalize email input
+      const emailNorm = (email || "").trim().toLowerCase();
+      const cred = await signInWithEmailAndPassword(auth, emailNorm, password);
 
       // Owner shortcut
       if (cred.user?.email?.toLowerCase() === OWNER_EMAIL.toLowerCase()) {
@@ -85,22 +88,38 @@ function ResearcherLogin({ onBack }) {
         <h1 className="text-2xl font-bold text-center mb-4">Researcher Login</h1>
 
         <form onSubmit={handleLogin} className="space-y-4">
-          <input
-            type="email"
-            placeholder="Email"
-            autoComplete="username"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-3 py-2 rounded text-black"
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-3 py-2 rounded text-black"
-          />
+          <div>
+            <input
+              type="email"
+              placeholder="Email"
+              autoComplete="username"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-3 py-2 rounded text-black"
+              required
+            />
+          </div>
+
+          <div>
+            <input
+              type={showPw ? "text" : "password"} // 🔹 Toggle type
+              placeholder="Password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-3 py-2 rounded text-black"
+              required
+            />
+            <label className="mt-2 flex items-center gap-2 text-sm text-white/90 select-none">
+              <input
+                type="checkbox"
+                checked={showPw}
+                onChange={() => setShowPw((s) => !s)}
+                className="accent-white"
+              />
+              Show password
+            </label>
+          </div>
 
           {error && <p className="text-red-300 text-sm">{error}</p>}
 
