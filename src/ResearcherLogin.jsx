@@ -1,25 +1,54 @@
+// src/ResearcherLogin.jsx
 import { useState } from "react";
 import {
   signInWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
 } from "firebase/auth";
-import { Link } from "react-router-dom";
-import { auth } from "./firebase";
+import { Link, useNavigate } from "react-router-dom";
+import { auth, db } from "./firebase";
+import { doc, setDoc } from "firebase/firestore";
 
 function ResearcherLogin({ onBack }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  // 👑 Change this to your owner email
+  const OWNER_EMAIL = "grohaj03rk@gmail.com";
+
+  const ensureOwnerAndGoToDashboard = async (user) => {
+    // Upsert the owner's Firestore user doc as approved admin
+    await setDoc(
+      doc(db, "users", user.uid),
+      {
+        email: user.email,
+        role: "admin",
+        approved: true,
+        createdAt: new Date(),
+      },
+      { merge: true }
+    );
+    // Go directly to dashboard
+    navigate("/admin");
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged in App.jsx handles redirect after login
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+
+      // Owner shortcut
+      if (cred.user?.email?.toLowerCase() === OWNER_EMAIL.toLowerCase()) {
+        await ensureOwnerAndGoToDashboard(cred.user);
+        return; // stop; we already navigated
+      }
+
+      // Everyone else: your existing onAuthStateChanged flow handles redirect
     } catch (err) {
       setError(err.message);
     } finally {
@@ -32,8 +61,15 @@ function ResearcherLogin({ onBack }) {
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      // approval check will happen in App.jsx / dashboard
+      const cred = await signInWithPopup(auth, provider);
+
+      // Owner shortcut for Google sign-in too
+      if (cred.user?.email?.toLowerCase() === OWNER_EMAIL.toLowerCase()) {
+        await ensureOwnerAndGoToDashboard(cred.user);
+        return;
+      }
+
+      // Others: approval check happens in App.jsx / dashboard
     } catch (err) {
       setError(err.message);
     } finally {
