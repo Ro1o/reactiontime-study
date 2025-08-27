@@ -17,66 +17,64 @@ function ResearcherLogin({ onBack }) {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // 👑 Your owner email (bypass approval + go straight to dashboard)
+  // 👑 Owner email (bypass approval → /admin dashboard)
   const OWNER_EMAIL = "grohaj03rk@gmail.com";
 
   const ensureOwnerAndGoToDashboard = async (user) => {
-    // Upsert the owner's Firestore user doc as approved admin
     await setDoc(
       doc(db, "users", user.uid),
       {
         email: user.email,
         role: "admin",
         approved: true,
-        // serverTimestamp is fine to re-set; if you'd rather not overwrite,
-        // you can omit createdAt here once your doc exists.
         createdAt: serverTimestamp(),
       },
       { merge: true }
     );
-    // Go directly to dashboard (your /admin route renders the dashboard when authed)
     navigate("/admin");
   };
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setError(null);
     setLoading(true);
     try {
-      // keep logic same; lightly normalize email input
       const emailNorm = (email || "").trim().toLowerCase();
       const cred = await signInWithEmailAndPassword(auth, emailNorm, password);
 
       // Owner shortcut
       if (cred.user?.email?.toLowerCase() === OWNER_EMAIL.toLowerCase()) {
         await ensureOwnerAndGoToDashboard(cred.user);
-        return; // stop; we already navigated
+        return;
       }
 
-      // Everyone else: your onAuthStateChanged flow in App.jsx handles redirect/approval gate
+      // ✅ Non-owner: go to /admin; App.jsx decides Pending vs Dashboard
+      navigate("/admin");
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Login failed.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
+    if (loading) return;
     setError(null);
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
       const cred = await signInWithPopup(auth, provider);
 
-      // Owner shortcut for Google sign-in too
       if (cred.user?.email?.toLowerCase() === OWNER_EMAIL.toLowerCase()) {
         await ensureOwnerAndGoToDashboard(cred.user);
         return;
       }
 
-      // Others: approval check happens in App.jsx / dashboard
+      // ✅ Non-owner Google sign-in → let /admin gate them
+      navigate("/admin");
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Google sign-in failed.");
     } finally {
       setLoading(false);
     }
@@ -102,7 +100,7 @@ function ResearcherLogin({ onBack }) {
 
           <div>
             <input
-              type={showPw ? "text" : "password"} // 🔹 Toggle type
+              type={showPw ? "text" : "password"}
               placeholder="Password"
               autoComplete="current-password"
               value={password}
@@ -121,7 +119,7 @@ function ResearcherLogin({ onBack }) {
             </label>
           </div>
 
-          {error && <p className="text-red-300 text-sm">{error}</p>}
+        {error && <p className="text-red-300 text-sm">{error}</p>}
 
           <button
             type="submit"

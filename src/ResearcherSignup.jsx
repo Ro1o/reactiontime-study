@@ -21,20 +21,30 @@ export default function ResearcherSignup() {
     setLoading(true);
     try {
       const emailNorm = (email || "").trim().toLowerCase();
+
+      // Create auth account
       const cred = await createUserWithEmailAndPassword(auth, emailNorm, pw);
 
+      // Create Firestore user doc (default researcher, needs approval)
       await setDoc(doc(db, "users", cred.user.uid), {
         email: emailNorm,
-        approved: false, // owner/admin will approve
+        approved: false,
         role: "researcher",
         createdAt: serverTimestamp(),
       });
 
-      // Optional message (won't be seen if we navigate immediately)
+      // Optional UI message (won’t be seen after navigate)
       setMsg("Signup complete. Your account is pending approval.");
 
-      // ✅ Redirect to login form after successful signup
-      navigate("/admin"); // adjust if your login route differs
+      // ✅ Ensure we land on the login screen (not Pending) by signing out first
+      try {
+        await auth.signOut();
+      } catch {
+        /* no-op */
+      }
+
+      // Then go to login (your login is at /admin)
+      navigate("/admin");
     } catch (e) {
       setErr(e.message);
     } finally {
@@ -91,9 +101,17 @@ export default function ResearcherSignup() {
           </button>
         </form>
 
-        <a href="/admin" className="block text-center mt-4 text-sm text-blue-700 underline">
+        {/* Back to login should sign out first so /admin shows the login form */}
+        <button
+          onClick={async (e) => {
+            e.preventDefault();
+            try { await auth.signOut(); } catch {}
+            navigate("/admin");
+          }}
+          className="block w-full text-center mt-4 text-sm text-blue-700 underline"
+        >
           Back to login
-        </a>
+        </button>
       </div>
     </div>
   );

@@ -9,7 +9,7 @@ import Consent from "./Consent";
 import Debrief from "./Debrief";
 import ResearcherLogin from "./ResearcherLogin";
 import ResearcherDashboard from "./ResearcherDashboard";
-import ResearcherSignup from "./ResearcherSignup"; // 🔹 NEW signup component
+import ResearcherSignup from "./ResearcherSignup";
 
 import { auth, db } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -129,6 +129,9 @@ function App() {
               )
             }
           />
+
+          {/* 🔐 Always-show login page (useful after signup/signout) */}
+          <Route path="/admin/login" element={<ResearcherLogin />} />
 
           {/* 🔐 Researcher signup route at /admin/signup */}
           <Route path="/admin/signup" element={<ResearcherSignup />} />
