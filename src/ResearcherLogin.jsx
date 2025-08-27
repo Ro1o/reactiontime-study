@@ -7,7 +7,7 @@ import {
 } from "firebase/auth";
 import { Link, useNavigate } from "react-router-dom";
 import { auth, db } from "./firebase";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 function ResearcherLogin({ onBack }) {
   const [email, setEmail] = useState("");
@@ -16,7 +16,7 @@ function ResearcherLogin({ onBack }) {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // 👑 Change this to your owner email
+  // 👑 Your owner email (bypass approval + go straight to dashboard)
   const OWNER_EMAIL = "grohaj03rk@gmail.com";
 
   const ensureOwnerAndGoToDashboard = async (user) => {
@@ -27,11 +27,13 @@ function ResearcherLogin({ onBack }) {
         email: user.email,
         role: "admin",
         approved: true,
-        createdAt: new Date(),
+        // serverTimestamp is fine to re-set; if you'd rather not overwrite,
+        // you can omit createdAt here once your doc exists.
+        createdAt: serverTimestamp(),
       },
       { merge: true }
     );
-    // Go directly to dashboard
+    // Go directly to dashboard (your /admin route renders the dashboard when authed)
     navigate("/admin");
   };
 
@@ -48,7 +50,7 @@ function ResearcherLogin({ onBack }) {
         return; // stop; we already navigated
       }
 
-      // Everyone else: your existing onAuthStateChanged flow handles redirect
+      // Everyone else: your onAuthStateChanged flow in App.jsx handles redirect/approval gate
     } catch (err) {
       setError(err.message);
     } finally {
