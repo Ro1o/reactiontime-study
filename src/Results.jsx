@@ -1,5 +1,8 @@
-import { useMemo } from "react";
+// src/Results.jsx
+import { useMemo, useEffect, useRef } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { db } from "./firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 function Results({ participantData, results, onFinish }) {
   const data = [
@@ -7,6 +10,45 @@ function Results({ participantData, results, onFinish }) {
     { modality: "Auditory", RT: results.medians.auditory ?? null },
     { modality: "Tactile", RT: results.medians.tactile ?? null },
   ];
+
+  // Save exactly once when this screen mounts
+  const savedRef = useRef(false);
+  useEffect(() => {
+    const saveResults = async () => {
+      if (savedRef.current) return;
+      savedRef.current = true;
+
+      try {
+        // Flatten some fields for easier querying/CSV later
+        await addDoc(collection(db, "results"), {
+          participantId: participantData?.participantId ?? null,
+          university: participantData?.university ?? null,
+          condition: participantData?.condition ?? null,
+          startedAt: participantData?.timestamp ?? null,
+
+          // Summary stats
+          overallMedian: results?.overallMedian ?? null,
+          medians: {
+            visual: results?.medians?.visual ?? null,
+            auditory: results?.medians?.auditory ?? null,
+            tactile: results?.medians?.tactile ?? null,
+          },
+
+          // Keep full trial data as well
+          trials: results?.trials ?? [],
+
+          // Server timestamp for ordering
+          createdAt: serverTimestamp(),
+        });
+        // console.log("✅ Results saved to Firestore");
+      } catch (err) {
+        console.error("❌ Error saving results:", err);
+        // Non-blocking: UI still shows results; you can add a toast if you like
+      }
+    };
+
+    saveResults();
+  }, [participantData, results]);
 
   // Dynamic theming for axis/tick colors
   const isDark = useMemo(() => {

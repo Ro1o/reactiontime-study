@@ -106,12 +106,13 @@ function ResearcherDashboard({ researcher, onLogout }) {
     window.URL.revokeObjectURL(url);
   };
 
-  const displayName =
-    profile?.firstName?.trim()
-      ? profile.username
-        ? `${profile.firstName} (${profile.username})`
-        : profile.firstName
-      : researcher?.email;
+const displayName =
+  profile?.firstName && profile?.lastName
+    ? `${profile.firstName} ${profile.lastName}`
+    : profile?.firstName
+    ? profile.firstName
+    : researcher?.email;
+
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white">
@@ -120,6 +121,7 @@ function ResearcherDashboard({ researcher, onLogout }) {
           Researcher Dashboard
         </h1>
         <p className="text-center mb-4">Welcome {displayName}</p>
+
 
         <div className="flex justify-between mb-6">
           <button
