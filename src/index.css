@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Optional: smooth transitions for theme changes */
+html {
+  transition: background-color 200ms ease, color 200ms ease;
+}
