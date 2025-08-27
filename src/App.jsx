@@ -33,9 +33,7 @@ function App() {
   // Persist dark mode choice in localStorage
   useEffect(() => {
     const saved = localStorage.getItem("theme");
-    if (saved === "dark") {
-      document.documentElement.classList.add("dark");
-    }
+    if (saved === "dark") document.documentElement.classList.add("dark");
     setThemeReady(true);
   }, []);
 
@@ -44,7 +42,7 @@ function App() {
     localStorage.setItem("theme", isDark ? "dark" : "light");
   };
 
-  // Watch Firebase auth state + check approval
+  // Watch Firebase auth state + check approval (and enforce owner admin)
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       setResearcher(user);
@@ -57,7 +55,7 @@ function App() {
       try {
         const emailNorm = normalize(user.email);
 
-        // ✅ Safety net: ensure owner is always approved admin
+        // ✅ Owner safety net: always mark as approved admin
         if (emailNorm === normalize(OWNER_EMAIL)) {
           await setDoc(
             doc(db, "users", user.uid),
@@ -73,14 +71,9 @@ function App() {
           return;
         }
 
-        // Everyone else: read approval flag from Firestore
+        // Everyone else: read Firestore flag
         const snap = await getDoc(doc(db, "users", user.uid));
-        if (snap.exists()) {
-          setApproved(snap.data().approved === true);
-        } else {
-          // No doc yet => treat as not approved (owner/admin will handle)
-          setApproved(false);
-        }
+        setApproved(snap.exists() ? snap.data().approved === true : false);
       } catch (err) {
         console.error("Error fetching approval:", err);
         setApproved(false);
@@ -91,6 +84,11 @@ function App() {
   }, []);
 
   if (!themeReady) return null;
+
+  // 🔎 Extra guard at render time:
+  const isOwner =
+    !!researcher &&
+    normalize(researcher.email) === normalize(OWNER_EMAIL);
 
   return (
     <Router>
@@ -109,7 +107,13 @@ function App() {
             path="/admin"
             element={
               researcher ? (
-                approved === null ? (
+                // 👑 If owner, short-circuit straight to dashboard
+                isOwner ? (
+                  <ResearcherDashboard
+                    researcher={researcher}
+                    onLogout={() => auth.signOut()}
+                  />
+                ) : approved === null ? (
                   <p className="text-center mt-10 text-white">Checking approval...</p>
                 ) : approved ? (
                   <ResearcherDashboard
@@ -130,10 +134,10 @@ function App() {
             }
           />
 
-          {/* 🔐 Always-show login page (useful after signup/signout) */}
+          {/* Dedicated login route (always shows login UI) */}
           <Route path="/admin/login" element={<ResearcherLogin />} />
 
-          {/* 🔐 Researcher signup route at /admin/signup */}
+          {/* Researcher signup */}
           <Route path="/admin/signup" element={<ResearcherSignup />} />
 
           {/* 👨‍🎓 Participant route at / */}
