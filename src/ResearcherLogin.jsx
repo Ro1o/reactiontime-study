@@ -12,7 +12,7 @@ import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 function ResearcherLogin({ onBack }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPw, setShowPw] = useState(false); // 🔹 Show password toggle
+  const [showPw, setShowPw] = useState(false); // 👁️ Eye toggle
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -43,13 +43,10 @@ function ResearcherLogin({ onBack }) {
       const emailNorm = (email || "").trim().toLowerCase();
       const cred = await signInWithEmailAndPassword(auth, emailNorm, password);
 
-      // Owner shortcut
       if (cred.user?.email?.toLowerCase() === OWNER_EMAIL.toLowerCase()) {
         await ensureOwnerAndGoToDashboard(cred.user);
         return;
       }
-
-      // ✅ Non-owner: go to /admin; App.jsx decides Pending vs Dashboard
       navigate("/admin");
     } catch (err) {
       setError(err.message || "Login failed.");
@@ -70,8 +67,6 @@ function ResearcherLogin({ onBack }) {
         await ensureOwnerAndGoToDashboard(cred.user);
         return;
       }
-
-      // ✅ Non-owner Google sign-in → let /admin gate them
       navigate("/admin");
     } catch (err) {
       setError(err.message || "Google sign-in failed.");
@@ -98,28 +93,45 @@ function ResearcherLogin({ onBack }) {
             />
           </div>
 
-          <div>
+          {/* Password with eye toggle */}
+          <div className="relative">
             <input
               type={showPw ? "text" : "password"}
               placeholder="Password"
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 rounded text-black"
+              className="w-full px-3 py-2 rounded text-black pr-10"
               required
             />
-            <label className="mt-2 flex items-center gap-2 text-sm text-white/90 select-none">
-              <input
-                type="checkbox"
-                checked={showPw}
-                onChange={() => setShowPw((s) => !s)}
-                className="accent-white"
-              />
-              Show password
-            </label>
+            <button
+              type="button"
+              onClick={() => setShowPw((s) => !s)}
+              className="absolute inset-y-0 right-3 flex items-center text-gray-600 hover:text-gray-800"
+            >
+              {showPw ? (
+                // Eye open
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none"
+                     viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              ) : (
+                // Eye closed
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none"
+                     viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a9.956 9.956 0 012.543-4.24m3.244-2.268A9.956 9.956 0 0112 5c4.478 0 8.268 2.943 9.542 7a9.964 9.964 0 01-4.038 5.092M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M3 3l18 18" />
+                </svg>
+              )}
+            </button>
           </div>
 
-        {error && <p className="text-red-300 text-sm">{error}</p>}
+          {error && <p className="text-red-300 text-sm">{error}</p>}
 
           <button
             type="submit"
