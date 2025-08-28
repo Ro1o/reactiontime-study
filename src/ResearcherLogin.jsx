@@ -7,7 +7,7 @@ import {
 } from "firebase/auth";
 import { Link, useNavigate } from "react-router-dom";
 import { auth, db } from "./firebase";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, getDoc } from "firebase/firestore";
 
 function ResearcherLogin({ onBack }) {
   const [email, setEmail] = useState("");
@@ -17,6 +17,7 @@ function ResearcherLogin({ onBack }) {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // 👑 Owner email (bypass approval → /admin dashboard)
   const OWNER_EMAIL = "grohaj03rk@gmail.com";
 
   const ensureOwnerAndGoToDashboard = async (user) => {
@@ -42,10 +43,13 @@ function ResearcherLogin({ onBack }) {
       const emailNorm = (email || "").trim().toLowerCase();
       const cred = await signInWithEmailAndPassword(auth, emailNorm, password);
 
+      // Owner shortcut
       if (cred.user?.email?.toLowerCase() === OWNER_EMAIL.toLowerCase()) {
         await ensureOwnerAndGoToDashboard(cred.user);
         return;
       }
+
+      // ✅ Non-owner: go to /admin; App.jsx decides Pending vs Dashboard
       navigate("/admin");
     } catch (err) {
       setError(err.message || "Login failed.");
@@ -62,10 +66,44 @@ function ResearcherLogin({ onBack }) {
       const provider = new GoogleAuthProvider();
       const cred = await signInWithPopup(auth, provider);
 
+      // Owner shortcut for Google sign-in too
       if (cred.user?.email?.toLowerCase() === OWNER_EMAIL.toLowerCase()) {
         await ensureOwnerAndGoToDashboard(cred.user);
         return;
       }
+
+      // 🔹 Ensure a user doc exists so the owner can approve later
+      const ref = doc(db, "users", cred.user.uid);
+      const snap = await getDoc(ref);
+
+      const dn = (cred.user.displayName || "").trim();
+      const [fn, ...rest] = dn.split(" ");
+      const ln = rest.join(" ");
+
+      if (!snap.exists()) {
+        await setDoc(ref, {
+          email: cred.user.email,
+          firstName: fn || "",
+          lastName: ln || "",
+          approved: false,
+          role: "researcher",
+          createdAt: serverTimestamp(),
+        });
+      } else {
+        // Make sure minimal fields exist without clobbering approval
+        await setDoc(
+          ref,
+          {
+            email: cred.user.email,
+            firstName: snap.data().firstName || fn || "",
+            lastName: snap.data().lastName || ln || "",
+            role: snap.data().role || "researcher",
+          },
+          { merge: true }
+        );
+      }
+
+      // ✅ Non-owner Google sign-in → let /admin gate them
       navigate("/admin");
     } catch (err) {
       setError(err.message || "Google sign-in failed.");
@@ -172,6 +210,7 @@ function ResearcherLogin({ onBack }) {
           Continue with Google
         </button>
 
+        {/* Switch to signup (works even if they don't have an account) */}
         <p className="text-sm text-center mt-5 text-white/80">
           Don’t have an account?{" "}
           <Link to="/admin/signup" className="underline hover:text-white">
@@ -182,7 +221,7 @@ function ResearcherLogin({ onBack }) {
         {onBack && (
           <button
             onClick={onBack}
-            className="mt-3 w-full rounded-xl bg-black/30 hover:bg黑/40 py-2.5"
+            className="mt-3 w-full rounded-xl bg-black/30 hover:bg-black/40 py-2.5"
           >
             Back
           </button>

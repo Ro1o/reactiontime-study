@@ -1,6 +1,6 @@
 // src/ResearcherSignup.jsx
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
@@ -54,7 +54,7 @@ export default function ResearcherSignup() {
         createdAt: serverTimestamp(),
       });
 
-      // land on login (not pending) by signing out, then go to /admin
+      // ✅ land on login (not Pending) by signing out, then go to /admin
       try { await auth.signOut(); } catch {}
       navigate("/admin");
     } catch (e) {
@@ -120,6 +120,12 @@ export default function ResearcherSignup() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const goToLogin = async () => {
+    // 🔐 Make sure we show the login form and not a signed-in state
+    try { await auth.signOut(); } catch {}
+    navigate("/admin");
   };
 
   return (
@@ -238,11 +244,16 @@ export default function ResearcherSignup() {
           Continue with Google
         </button>
 
+        {/* Back to login — signs out first so /admin shows the login form */}
         <p className="text-sm text-center mt-5 text-white/80">
           Already have an account?{" "}
-          <Link to="/admin" className="underline hover:text-white">
+          <button
+            type="button"
+            onClick={goToLogin}
+            className="underline hover:text-white"
+          >
             Back to login
-          </Link>
+          </button>
         </p>
       </div>
     </div>
