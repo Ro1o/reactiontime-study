@@ -64,13 +64,34 @@ function Results({ participantData, results, onFinish }) {
           aesGcmEncrypt(results?.trials ?? []),
         ]);
 
-        await addDoc(collection(db, "results"), {
+        // Write to Firestore
+        const ref = await addDoc(collection(db, "results"), {
           ...summary,
           // Dashboard CSV exporter knows how to decrypt these if wrapped
           participant: participantEnc,
           trials: trialsEnc,
           createdAt: serverTimestamp(),
         });
+
+        // Persist tiny summary locally for Debrief / Receipt (non-blocking)
+        try {
+          localStorage.setItem("lastResultId", ref.id);
+          localStorage.setItem(
+            "lastOverallMedian",
+            JSON.stringify(results?.overallMedian ?? null)
+          );
+          localStorage.setItem(
+            "lastMedians",
+            JSON.stringify(results?.medians ?? null)
+          );
+          localStorage.setItem(
+            "lastUniversity",
+            JSON.stringify(participantData?.university ?? null)
+          );
+        } catch {
+          // ignore storage errors
+        }
+
         // console.log("✅ Results saved to Firestore");
       } catch (err) {
         console.error("❌ Error saving results:", err);

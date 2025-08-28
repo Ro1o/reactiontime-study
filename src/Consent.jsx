@@ -1,19 +1,25 @@
-function Consent({ onConsent }) {
+// src/Consent.jsx
+export default function Consent({ onConsent }) {
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-2xl shadow-lg backdrop-blur-md bg-white/30 dark:bg-gray-800/50 p-8 text-gray-900 dark:text-gray-100">
-        <h1 className="text-2xl font-bold mb-4">Consent to Participate</h1>
-        <p className="mb-4">
-          You are invited to take part in a brief reaction time study. Your responses are anonymous and stored securely for research purposes only.
-        </p>
-        <ul className="list-disc list-inside mb-4 text-sm">
-          <li>You may withdraw at any time by closing the page.</li>
-          <li>We store non-identifiable device info (browser/OS) to interpret timing differences.</li>
-          <li>Data will be analyzed in aggregate.</li>
-        </ul>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 flex items-center justify-center px-4 py-10 text-white">
+      <div className="w-full max-w-xl rounded-3xl bg-white/10 backdrop-blur-xl border border-white/10 shadow-2xl p-8">
+        <h1 className="text-2xl font-extrabold text-center">Participant Consent</h1>
+        <p className="text-center text-white/70 mt-1">Reaction Time Study</p>
+
+        <div className="mt-6 space-y-3 text-white/90 text-sm leading-relaxed">
+          <p>
+            You are invited to take part in a brief study on reaction time. Participation is voluntary.
+          </p>
+          <ul className="list-disc list-inside space-y-1">
+            <li>You may stop at any time by closing this page.</li>
+            <li>The task lasts only a few minutes and involves reacting to simple cues.</li>
+            <li>Results are stored securely and analyzed in aggregate for research purposes.</li>
+          </ul>
+        </div>
+
         <button
           onClick={onConsent}
-          className="w-full py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+          className="mt-6 w-full rounded-xl bg-indigo-500 hover:bg-indigo-400 py-3 font-semibold shadow-lg"
         >
           I Agree & Continue
         </button>
@@ -21,4 +27,3 @@ function Consent({ onConsent }) {
     </div>
   );
 }
-export default Consent;
