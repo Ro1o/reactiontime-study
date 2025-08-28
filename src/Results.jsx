@@ -11,6 +11,31 @@ function Results({ participantData, results, onFinish }) {
     { modality: "Tactile", RT: results.medians.tactile ?? null },
   ];
 
+  // -------- Optional AES-GCM encryption (controlled by VITE_RESULTS_SECRET) --------
+  const SECRET_B64 = import.meta.env.VITE_RESULTS_SECRET || null;
+
+  const textToBytes = (t) => new TextEncoder().encode(t);
+  const bytesToB64 = (bytes) => btoa(String.fromCharCode(...bytes));
+
+  // Encrypts a value; if no secret is set, returns the value unchanged.
+  const aesGcmEncrypt = async (plain) => {
+    if (!SECRET_B64) return plain; // no-op when secret is not configured
+
+    const keyRaw = Uint8Array.from(atob(SECRET_B64), (c) => c.charCodeAt(0));
+    const key = await crypto.subtle.importKey("raw", keyRaw, "AES-GCM", false, ["encrypt"]);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+
+    // Always encrypt a string; stringify non-strings
+    const plaintext = typeof plain === "string" ? plain : JSON.stringify(plain);
+    const buf = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, textToBytes(plaintext));
+
+    return {
+      __enc: "aes-gcm",
+      iv: bytesToB64(iv),
+      data: bytesToB64(new Uint8Array(buf)),
+    };
+  };
+
   // Save exactly once when this screen mounts
   const savedRef = useRef(false);
   useEffect(() => {
@@ -19,31 +44,37 @@ function Results({ participantData, results, onFinish }) {
       savedRef.current = true;
 
       try {
-        // Flatten some fields for easier querying/CSV later
-        await addDoc(collection(db, "results"), {
+        // Keep summary fields in plaintext for easy querying and dashboard table
+        const summary = {
           participantId: participantData?.participantId ?? null,
           university: participantData?.university ?? null,
           condition: participantData?.condition ?? null,
           startedAt: participantData?.timestamp ?? null,
-
-          // Summary stats
           overallMedian: results?.overallMedian ?? null,
           medians: {
             visual: results?.medians?.visual ?? null,
             auditory: results?.medians?.auditory ?? null,
             tactile: results?.medians?.tactile ?? null,
           },
+        };
 
-          // Keep full trial data as well
-          trials: results?.trials ?? [],
+        // Encrypt detailed blobs if a secret is configured; else store as-is
+        const [participantEnc, trialsEnc] = await Promise.all([
+          aesGcmEncrypt(participantData ?? {}),
+          aesGcmEncrypt(results?.trials ?? []),
+        ]);
 
-          // Server timestamp for ordering
+        await addDoc(collection(db, "results"), {
+          ...summary,
+          // Dashboard CSV exporter knows how to decrypt these if wrapped
+          participant: participantEnc,
+          trials: trialsEnc,
           createdAt: serverTimestamp(),
         });
         // console.log("✅ Results saved to Firestore");
       } catch (err) {
         console.error("❌ Error saving results:", err);
-        // Non-blocking: UI still shows results; you can add a toast if you like
+        // Non-blocking: UI still shows results
       }
     };
 
@@ -55,7 +86,6 @@ function Results({ participantData, results, onFinish }) {
     if (typeof window === "undefined") return false;
     return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
   }, []);
-
   const axisColor = isDark ? "#fff" : "#000";
 
   return (
@@ -86,7 +116,7 @@ function Results({ participantData, results, onFinish }) {
           </p>
         </div>
 
-        {/* Keep trial-level data but hide it */}
+        {/* Keep trial-level data but hide it from the UI */}
         <details className="mt-4 hidden">
           <summary className="cursor-pointer text-sm opacity-80">Show trial-level data</summary>
           <pre className="text-xs bg-black/20 p-3 rounded mt-2 overflow-auto max-h-48">
